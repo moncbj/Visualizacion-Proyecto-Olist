@@ -1,0 +1,21 @@
+let
+    Origen = Csv.Document(File.Contents("C:\Users\Linda\Downloads\archive (1)\olist_products_dataset.csv"),[Delimiter=",", Columns=9, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars=true]),
+    #"Tipo cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos",{{"product_id", type text}, {"product_category_name", type text}, {"product_name_lenght", Int64.Type}, {"product_description_lenght", Int64.Type}, {"product_photos_qty", Int64.Type}, {"product_weight_g", Int64.Type}, {"product_length_cm", Int64.Type}, {"product_height_cm", Int64.Type}, {"product_width_cm", Int64.Type}}),
+    #"Columnas quitadas" = Table.RemoveColumns(#"Tipo cambiado",{"product_name_lenght", "product_description_lenght", "product_photos_qty"}),
+    #"Personalizada agregada" = Table.AddColumn(#"Columnas quitadas", "volumen_producto", each [product_length_cm] * [product_height_cm] * [product_width_cm]),
+    #"Tipo cambiado1" = Table.TransformColumnTypes(#"Personalizada agregada",{{"volumen_producto", type number}}),
+    #"Personalizada agregada1" = Table.AddColumn(#"Tipo cambiado1", "peso_producto", each [product_weight_g] / 1000),
+    #"Tipo cambiado2" = Table.TransformColumnTypes(#"Personalizada agregada1",{{"peso_producto", type number}}),
+    #"Consultas combinadas" = Table.NestedJoin(#"Tipo cambiado2", {"product_category_name"}, Category, {"product_category_name"}, "Category", JoinKind.LeftOuter),
+    #"Se expandió Category" = Table.ExpandTableColumn(#"Consultas combinadas", "Category", {"product_category_name_english"}, {"Category.product_category_name_english"}),
+    #"Columnas reordenadas" = Table.ReorderColumns(#"Se expandió Category",{"product_id", "product_category_name", "Category.product_category_name_english", "product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm", "volumen_producto", "peso_producto"}),
+    #"Filas filtradas" = Table.SelectRows(#"Columnas reordenadas", each true),
+    #"Columnas con nombre cambiado" = Table.RenameColumns(#"Filas filtradas",{{"Category.product_category_name_english", "category"}}),
+    #"Columnas quitadas1" = Table.RemoveColumns(#"Columnas con nombre cambiado",{"product_category_name", "product_width_cm", "product_length_cm", "product_height_cm", "product_weight_g"}),
+    #"Valor reemplazado" = Table.ReplaceValue(#"Columnas quitadas1",null,"Uncategorized",Replacer.ReplaceValue,{"category"}),
+    #"Columna condicional agregada" = Table.AddColumn(#"Valor reemplazado", "categoria_general", each if Text.Contains([category], "furniture") then "Home" else if Text.Contains([category], "home") then "Home" else if Text.Contains([category], "garden") then "Home" else if Text.Contains([category], "toys") then "Kids" else if Text.Contains([category], "baby") then "Kids" else if Text.Contains([category], "electronics") then "Technology" else if Text.Contains([category], "phone") then "Technology" else if Text.Contains([category], "computer") then "Technology" else if Text.Contains([category], "fashion") then "Fashion" else if Text.Contains([category], "shoes") then "Fashion" else if Text.Contains([category], "sports") then "Fashion" else if Text.Contains([category], "beauty") then "Beauty" else if Text.Contains([category], "health") then "Beauty" else if Text.Contains([category], "perfumery") then "Beauty" else if Text.Contains([category], "bath") then "Home" else if Text.Contains([category], "construction") then "Home" else if Text.Contains([category], "housewares") then "Home" else if Text.Contains([category], "accessories") then "Fashion" else if Text.Contains([category], "small_appliances") then "Technology" else if Text.Contains([category], "stationery") then "Kids" else if Text.Contains([category], "telephony") then "Technology" else if Text.Contains([category], "watches_gifts") then "Fashion" else if Text.Contains([category], "Uncategorized") then "Uncategorized" else "Others"),
+    #"Filas filtradas1" = Table.SelectRows(#"Columna condicional agregada", each true),
+    #"Columnas quitadas2" = Table.RemoveColumns(#"Filas filtradas1",{"volumen_producto", "peso_producto", "category"})
+in
+    #"Columnas quitadas2"
